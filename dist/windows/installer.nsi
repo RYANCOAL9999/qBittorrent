@@ -175,6 +175,7 @@ SectionEnd
 Function .onInit
 
   !insertmacro Init "installer"
+  StrCpy $Language ${LANG_TRADCHINESE}
   !insertmacro MUI_LANGDLL_DISPLAY
 
   ;Search if qBittorrent is already installed.

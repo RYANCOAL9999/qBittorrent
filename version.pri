@@ -2,17 +2,13 @@ PROJECT_NAME = qbittorrent
 
 # Define version numbers here
 VER_MAJOR = 3
-VER_MINOR = 4
-VER_BUGFIX = 0
-VER_BUILD = 0
-VER_STATUS = alpha # Should be empty for stable releases!
+VER_MINOR = 3
+VER_BUGFIX = 3
+VER_BUILD = 4
+VER_STATUS = # Should be empty for stable releases!
 
 # Don't touch the rest part
-PROJECT_VERSION = $${VER_MAJOR}.$${VER_MINOR}.$${VER_BUGFIX}
-
-!equals(VER_BUILD, 0) {
-    PROJECT_VERSION = $${PROJECT_VERSION}.$${VER_BUILD}
-}
+PROJECT_VERSION = $${VER_MAJOR}.$${VER_MINOR}.$${VER_BUGFIX}.$${VER_BUILD}
 
 PROJECT_VERSION = $${PROJECT_VERSION}$${VER_STATUS}
 

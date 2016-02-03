@@ -25,15 +25,9 @@
 torrentsTable = new TorrentsTable();
 torrentPeersTable = new TorrentPeersTable();
 
-var updatePropertiesPanel = function () {};
-
-var updateTorrentData = function () {};
-var updateTrackersData = function () {};
-var updateTorrentPeersData = function () {};
-var updateWebSeedsData = function () {};
-var updateTorrentFilesData = function () {};
-
-var updateMainData = function () {};
+var updatePropertiesPanel = function(){};
+var updateTorrentPeersData = function(){};
+var updateMainData = function(){};
 var alternativeSpeedLimits = false;
 var queueing_enabled = true;
 var syncMainDataTimerPeriod = 1500;
@@ -584,6 +578,8 @@ window.addEvent('load', function () {
             $('propertiesPanel_collapseToggle').addEvent('click', function(e){
                 updatePropertiesPanel();
             });
+
+            $(getLocalStorageItem('selected_tab', 'PropGeneralLink')).click();
         },
         column : 'mainColumn',
         height : prop_h

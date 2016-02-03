@@ -115,7 +115,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     Preferences* const pref = Preferences::instance();
     ui_locked = pref->isUILocked();
-    setWindowTitle(QString("qBittorrent %1").arg(QString::fromUtf8(VERSION)));
+    setWindowTitle(QString("qBittorrent %1 (Enhanced Edition)").arg(QString::fromUtf8(VERSION)));
     displaySpeedInTitle = pref->speedInTitleBar();
     // Setting icons
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))
@@ -769,7 +769,7 @@ void MainWindow::on_actionExit_triggered()
         if (!unlockUI())
             return;
     }
-
+    Preferences::instance()->unbanIP();
     force_exit = true;
     close();
 }
@@ -911,6 +911,7 @@ void MainWindow::closeEvent(QCloseEvent *e)
             }
             if (confirmBox.clickedButton() == alwaysBtn) {
                 // Remember choice
+                Preferences::instance()->unbanIP();
                 Preferences::instance()->setConfirmOnExit(false);
             }
         }
@@ -924,6 +925,7 @@ void MainWindow::closeEvent(QCloseEvent *e)
     if (systrayIcon)
         systrayIcon->hide();
     // Accept exit
+    Preferences::instance()->unbanIP();
     e->accept();
     qApp->exit();
 }
@@ -1524,24 +1526,28 @@ void MainWindow::on_actionExecution_Logs_triggered(bool checked)
 void MainWindow::on_actionAutoExit_qBittorrent_toggled(bool enabled)
 {
     qDebug() << Q_FUNC_INFO << enabled;
+    Preferences::instance()->unbanIP();
     Preferences::instance()->setShutdownqBTWhenDownloadsComplete(enabled);
 }
 
 void MainWindow::on_actionAutoSuspend_system_toggled(bool enabled)
 {
     qDebug() << Q_FUNC_INFO << enabled;
+    Preferences::instance()->unbanIP();
     Preferences::instance()->setSuspendWhenDownloadsComplete(enabled);
 }
 
 void MainWindow::on_actionAutoHibernate_system_toggled(bool enabled)
 {
     qDebug() << Q_FUNC_INFO << enabled;
+    Preferences::instance()->unbanIP();
     Preferences::instance()->setHibernateWhenDownloadsComplete(enabled);
 }
 
 void MainWindow::on_actionAutoShutdown_system_toggled(bool enabled)
 {
     qDebug() << Q_FUNC_INFO << enabled;
+    Preferences::instance()->unbanIP();
     Preferences::instance()->setShutdownWhenDownloadsComplete(enabled);
 }
 

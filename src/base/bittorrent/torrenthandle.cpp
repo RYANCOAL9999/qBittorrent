@@ -40,10 +40,6 @@
 #include <libtorrent/alert_types.hpp>
 #include <libtorrent/create_torrent.hpp>
 #include <libtorrent/magnet_uri.hpp>
-#if LIBTORRENT_VERSION_NUM >= 10100
-#include <libtorrent/time.hpp>
-#endif
-
 #include <boost/bind.hpp>
 
 #ifdef Q_OS_WIN
@@ -437,7 +433,7 @@ bool TorrentHandle::connectPeer(const PeerAddress &peerAddress)
     libt::address addr = libt::address::from_string(Utils::String::toStdString(peerAddress.ip.toString()), ec);
     if (ec) return false;
 
-    boost::asio::ip::tcp::endpoint ep(addr, peerAddress.port);
+    libt::asio::ip::tcp::endpoint ep(addr, peerAddress.port);
     SAFE_CALL_BOOL(connect_peer, ep);
 }
 
@@ -851,7 +847,7 @@ qulonglong TorrentHandle::eta() const
 
 QVector<qreal> TorrentHandle::filesProgress() const
 {
-    std::vector<boost::int64_t> fp;
+    std::vector<libt::size_type> fp;
     QVector<qreal> result;
     SAFE_CALL(file_progress, fp, libt::torrent_handle::piece_granularity);
 
@@ -1026,9 +1022,9 @@ qreal TorrentHandle::maxRatio(bool *usesGlobalRatio) const
 
 qreal TorrentHandle::realRatio() const
 {
-    boost::int64_t upload = m_nativeStatus.all_time_upload;
+    libt::size_type upload = m_nativeStatus.all_time_upload;
     // special case for a seeder who lost its stats, also assume nobody will import a 99% done torrent
-    boost::int64_t download = (m_nativeStatus.all_time_download < m_nativeStatus.total_done * 0.01) ? m_nativeStatus.total_done : m_nativeStatus.all_time_download;
+    libt::size_type download = (m_nativeStatus.all_time_download < m_nativeStatus.total_done * 0.01) ? m_nativeStatus.total_done : m_nativeStatus.all_time_download;
 
     if (download == 0)
         return (upload == 0) ? 0.0 : MAX_RATIO;
@@ -1070,11 +1066,7 @@ int TorrentHandle::connectionsLimit() const
 
 qlonglong TorrentHandle::nextAnnounce() const
 {
-#if LIBTORRENT_VERSION_NUM < 10100
     return m_nativeStatus.next_announce.total_seconds();
-#else
-    return libt::duration_cast<libt::seconds>(m_nativeStatus.next_announce).count();
-#endif
 }
 
 void TorrentHandle::setName(const QString &name)
@@ -1151,8 +1143,6 @@ void TorrentHandle::setFirstLastPiecePriority(bool b)
 
     std::vector<int> fp;
     SAFE_GET(fp, file_priorities);
-    std::vector<int> pp;
-    SAFE_GET(pp, piece_priorities);
 
     // Download first and last pieces first for all media files in the torrent
     int nbfiles = static_cast<int>(fp.size());
@@ -1161,22 +1151,14 @@ void TorrentHandle::setFirstLastPiecePriority(bool b)
         const QString ext = Utils::Fs::fileExtension(path);
         if (Utils::Misc::isPreviewable(ext) && (fp[index] > 0)) {
             qDebug() << "File" << path << "is previewable, toggle downloading of first/last pieces first";
-
             // Determine the priority to set
             int prio = b ? 7 : fp[index];
 
             QPair<int, int> extremities = fileExtremityPieces(index);
-
-            // worst case: AVI index = 1% of total file size (at the end of the file)
-            int nNumPieces = ceil(fileSize(index) * 0.01 / pieceLength());
-            for (int i = 0; i < nNumPieces; ++i) {
-                pp[extremities.first + i] = prio;
-                pp[extremities.second - i] = prio;
-            }
+            SAFE_CALL(piece_priority, extremities.first, prio);
+            SAFE_CALL(piece_priority, extremities.second, prio);
         }
     }
-
-    SAFE_CALL(prioritize_pieces, pp);
 }
 
 void TorrentHandle::toggleFirstLastPiecePriority()
@@ -1697,11 +1679,8 @@ libtorrent::torrent_handle TorrentHandle::nativeHandle() const
 void TorrentHandle::updateTorrentInfo()
 {
     if (!hasMetadata()) return;
-#if LIBTORRENT_VERSION_NUM < 10100
+
     m_torrentInfo = TorrentInfo(m_nativeStatus.torrent_file);
-#else
-    m_torrentInfo = TorrentInfo(m_nativeStatus.torrent_file.lock());
-#endif
 }
 
 void TorrentHandle::initialize()

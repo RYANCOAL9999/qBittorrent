@@ -279,8 +279,10 @@ options_imp::options_imp(QWidget *parent)
     // Tab selection mechanism
     connect(tabSelection, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)), this, SLOT(changePage(QListWidgetItem *, QListWidgetItem*)));
     // Load Advanced settings
-    advancedSettings = new AdvancedSettings(tabAdvancedPage);
-    advPageLayout->addWidget(advancedSettings);
+    QVBoxLayout *adv_layout = new QVBoxLayout();
+    advancedSettings = new AdvancedSettings();
+    adv_layout->addWidget(advancedSettings);
+    scrollArea_advanced->setLayout(adv_layout);
     connect(advancedSettings, SIGNAL(settingsChanged()), this, SLOT(enableApplyButton()));
 
     // Adapt size
@@ -310,6 +312,8 @@ options_imp::~options_imp()
     foreach (const QString &path, addedScanDirs)
         ScanFoldersModel::instance()->removePath(path);
     ScanFoldersModel::instance()->configure(); // reloads "removed" paths
+    delete scrollArea_advanced->layout();
+    delete advancedSettings;
 }
 
 void options_imp::changePage(QListWidgetItem *current, QListWidgetItem *previous)
@@ -519,6 +523,7 @@ void options_imp::saveOptions()
             pref->setWebUiHttpsKey(m_sslKey);
         }
         pref->setWebUiUsername(webUiUsername());
+        // FIXME: Check that the password is valid (not empty at least)
         pref->setWebUiPassword(webUiPassword());
         pref->setWebUiLocalAuthEnabled(!checkBypassLocalAuth->isChecked());
         // DynDNS
@@ -1023,10 +1028,6 @@ void options_imp::on_buttonBox_accepted()
             tabSelection->setCurrentRow(TAB_SPEED);
             return;
         }
-        if (!webUIAuthenticationOk()) {
-            tabSelection->setCurrentRow(TAB_WEBUI);
-            return;
-        }
         applyButton->setEnabled(false);
         this->hide();
         saveOptions();
@@ -1040,10 +1041,6 @@ void options_imp::applySettings(QAbstractButton* button)
     if (button == applyButton) {
         if (!schedTimesOk()) {
             tabSelection->setCurrentRow(TAB_SPEED);
-            return;
-        }
-        if (!webUIAuthenticationOk()) {
-            tabSelection->setCurrentRow(TAB_WEBUI);
             return;
         }
         saveOptions();
@@ -1533,22 +1530,15 @@ void options_imp::setSslCertificate(const QByteArray &cert, bool interactive)
 
 bool options_imp::schedTimesOk()
 {
-    if (schedule_from->time() == schedule_to->time()) {
-        QMessageBox::warning(this, tr("Time Error"), tr("The start time and the end time can't be the same."));
-        return false;
-    }
-    return true;
-}
+    QString msg;
 
-bool options_imp::webUIAuthenticationOk()
-{
-    if (webUiUsername().length() < 3) {
-        QMessageBox::warning(this, tr("Length Error"), tr("The Web UI username must be at least 3 characters long."));
+    if (schedule_from->time() == schedule_to->time())
+        msg = tr("The start time and the end time can't be the same.");
+
+    if (!msg.isEmpty()) {
+        QMessageBox::critical(this, tr("Time Error"), msg);
         return false;
     }
-    if (webUiPassword().length() < 6) {
-        QMessageBox::warning(this, tr("Length Error"), tr("The Web UI password must be at least 6 characters long."));
-        return false;
-    }
+
     return true;
 }

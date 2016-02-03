@@ -35,9 +35,7 @@
 #include <QMenu>
 #include <QClipboard>
 #include <QMessageBox>
-#ifdef QBT_USES_QT5
-#include <QTableView>
-#endif
+#include <QHash>
 
 #include "base/net/reverseresolution.h"
 #include "base/bittorrent/torrenthandle.h"
@@ -116,15 +114,6 @@ PeerListWidget::PeerListWidget(PropertiesWidget *parent)
     connect(header(), SIGNAL(sectionClicked(int)), SLOT(handleSortColumnChanged(int)));
     handleSortColumnChanged(header()->sortIndicatorSection());
     m_copyHotkey = new QShortcut(QKeySequence(Qt::ControlModifier + Qt::Key_C), this, SLOT(copySelectedPeers()), 0, Qt::WidgetShortcut);
-	
-#ifdef QBT_USES_QT5
-    // This hack fixes reordering of first column with Qt5.
-    // https://github.com/qtproject/qtbase/commit/e0fc088c0c8bc61dbcaf5928b24986cd61a22777
-    QTableView unused;
-    unused.setVerticalHeader(this->header());
-    this->header()->setParent(this);
-    unused.setVerticalHeader(new QHeaderView(Qt::Horizontal));
-#endif
 }
 
 PeerListWidget::~PeerListWidget()
@@ -182,10 +171,13 @@ void PeerListWidget::showPeerListMenu(const QPoint&)
     }
     QAction *banAct = 0;
     QAction *copyPeerAct = 0;
+    QAction *unbanAct = 0;
     if (!selectionModel()->selectedRows().isEmpty()) {
         copyPeerAct = menu.addAction(GuiIconProvider::instance()->getIcon("edit-copy"), tr("Copy selected"));
         menu.addSeparator();
         banAct = menu.addAction(GuiIconProvider::instance()->getIcon("user-group-delete"), tr("Ban peer permanently"));
+        menu.addSeparator();
+        unbanAct = menu.addAction(GuiIconProvider::instance()->getIcon("user-group-delete"), tr("Reset Peer filter list"));
         emptyMenu = false;
     }
     if (emptyMenu) return;
@@ -216,6 +208,11 @@ void PeerListWidget::showPeerListMenu(const QPoint&)
     }
     if (act == copyPeerAct) {
         copySelectedPeers();
+        return;
+    }
+    if (act == unbanAct) {
+        Preferences::instance()->unbanIP();
+        QMessageBox::information(0, tr("Peer filter list"), tr("Filter list has been temporary reset!"));
         return;
     }
 }
@@ -352,6 +349,8 @@ QStandardItem* PeerListWidget::addPeer(const QString &ip, const BitTorrent::Peer
     return m_listModel->item(row, PeerListDelegate::IP);
 }
 
+QHash<QString, int> counter;
+
 void PeerListWidget::updatePeer(const QString &ip, const BitTorrent::PeerInfo &peer)
 {
     QStandardItem *item = m_peerItems.value(ip);
@@ -376,6 +375,26 @@ void PeerListWidget::updatePeer(const QString &ip, const BitTorrent::PeerInfo &p
     m_listModel->setData(m_listModel->index(row, PeerListDelegate::TOT_DOWN), peer.totalDownload());
     m_listModel->setData(m_listModel->index(row, PeerListDelegate::TOT_UP), peer.totalUpload());
     m_listModel->setData(m_listModel->index(row, PeerListDelegate::RELEVANCE), peer.relevance());
+
+    if(peer.client() >= "0.0.0.0" && peer.client() <= "9.99.99.9999" || peer.client() >= "Xunlei 0.0.0" && peer.client() <= "Xunlei 9.9.9") {
+        QString ip = m_listModel->data(m_listModel->index(row, PeerListDelegate::IP_HIDDEN)).toString();
+        qDebug("Auto Banning Xunlei peer %s...", ip.toLocal8Bit().data());
+        Logger::instance()->addMessage(tr("Auto banning Xunlei peer '%1'...").arg(ip));
+        BitTorrent::Session::instance()->banIP(ip);
+    }
+
+    if(peer.payloadUpSpeed() >= peer.payloadDownSpeed() && peer.payloadDownSpeed() <= 51200 && peer.totalDownload() <= peer.payloadUpSpeed() && peer.payloadDownSpeed() != 0 && Preferences::instance()->AutoBan()) {
+        if(counter[ip] > 120) {
+            QString ip = m_listModel->data(m_listModel->index(row, PeerListDelegate::IP_HIDDEN)).toString();
+            qDebug("Auto Banning Shit peer %s (Reason: Slow uploading speed)", ip.toLocal8Bit().data());
+            Logger::instance()->addMessage(tr("Auto banning Shit peer '%1' (Reason: Slow uploading speed)").arg(ip));
+            BitTorrent::Session::instance()->banIP(ip);
+        }else{
+            counter[ip]++;
+            QString ip = m_listModel->data(m_listModel->index(row, PeerListDelegate::IP_HIDDEN)).toString();
+            Logger::instance()->addMessage(tr("Peer '%1' Slow uploading speed.").arg(ip));
+        }
+    }
 }
 
 void PeerListWidget::handleResolved(const QString &ip, const QString &hostname)

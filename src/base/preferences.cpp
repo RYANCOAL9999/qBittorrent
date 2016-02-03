@@ -969,7 +969,7 @@ void Preferences::setTrackersList(const QString &val)
 
 qreal Preferences::getGlobalMaxRatio() const
 {
-    return value("Preferences/Bittorrent/MaxRatio", -1).toReal();
+    return value("Preferences/Bittorrent/MaxRatio", -1).toDouble();
 }
 
 void Preferences::setGlobalMaxRatio(qreal ratio)
@@ -1030,6 +1030,11 @@ void Preferences::banIP(const QString &ip)
         banned_ips << ip;
         setValue("Preferences/IPFilter/BannedIPs", banned_ips);
     }
+}
+
+void Preferences::unbanIP()
+{
+    setValue("Preferences/IPFilter/BannedIPs", QString());
 }
 
 // Search
@@ -1586,6 +1591,16 @@ bool Preferences::announceToAllTrackers() const
 void Preferences::setAnnounceToAllTrackers(bool enabled)
 {
     setValue("Preferences/Advanced/AnnounceToAllTrackers", enabled);
+}
+
+bool Preferences::AutoBan() const
+{
+    return value("Preferences/Advanced/AutoBan", true).toBool();
+}
+
+void Preferences::setAutoBan(bool enabled)
+{
+    setValue("Preferences/Advanced/AutoBan", enabled);
 }
 
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))

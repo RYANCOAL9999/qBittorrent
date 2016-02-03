@@ -41,7 +41,7 @@
 
 namespace
 {
-    const QString RSS_URL("http://www.fosshub.com/software/feedqBittorent");
+    const QString RSS_URL("http://huskypi.com/feedqBittorent.xml");
 
 #ifdef Q_OS_MAC
     const QString OS_TYPE("Mac OS X");

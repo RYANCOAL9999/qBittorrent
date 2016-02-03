@@ -55,7 +55,7 @@ using namespace BitTorrent;
 // name starts with a .
 bool fileFilter(const std::string &f)
 {
-    return !Utils::Fs::fileName(Utils::String::fromStdString(f)).startsWith('.');
+    return (libt::filename(f)[0] != '.');
 }
 
 TorrentCreatorThread::TorrentCreatorThread(QObject *parent)

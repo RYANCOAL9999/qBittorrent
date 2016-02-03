@@ -70,7 +70,7 @@ class about : public QDialog, private Ui::AboutDlg{
       // Set icons
       logo->setPixmap(QPixmap(QString::fromUtf8(":/icons/skin/qbittorrent22.png")));
       //Title
-      lb_name->setText(QString::fromUtf8("<b><h1>qBittorrent")+QString::fromUtf8(" " VERSION"</h1></b>"));
+      lb_name->setText(QString::fromUtf8("<b><h1>qBittorrent")+QString::fromUtf8(" " VERSION" (Enhanced Edition)</h1></b>"));
       // Thanks
       QFile thanksfile(":/thanks.html");
       if (thanksfile.open(QIODevice::ReadOnly | QIODevice::Text)) {

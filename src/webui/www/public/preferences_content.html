@@ -964,7 +964,7 @@ loadPreferences = function() {
                     // Share Ratio Limiting
                     $('max_ratio_checkbox').setProperty('checked', pref.max_ratio_enabled);
                     if (pref.max_ratio_enabled)
-                        $('max_ratio_value').setProperty('value', pref.max_ratio);
+                        $('max_ratio_value').setProperty('value', pref.max_ratio.toInt());
                     else
                         $('max_ratio_value').setProperty('value', 1);
                     var max_ratio_act = pref.max_ratio_act.toInt();
@@ -1211,7 +1211,7 @@ applyPreferences = function() {
   // Share Ratio Limiting
   var max_ratio = -1;
   if($('max_ratio_checkbox').getProperty('checked')) {
-    max_ratio = $('max_ratio_value').getProperty('value');
+    max_ratio = $('max_ratio_value').getProperty('value').toInt();
     if(isNaN(max_ratio) || max_ratio < 0 || max_ratio > 9998) {
       alert("QBT_TR(Share ratio limit must be between 0 and 9998.)QBT_TR");
       return;
@@ -1239,13 +1239,14 @@ applyPreferences = function() {
 
   // Authentication
   var web_ui_username = $('webui_username_text').getProperty('value');
+  var web_ui_password = $('webui_password_text').getProperty('value');
+    // Add some username/password length checking
   if(web_ui_username.length < 3) {
     alert("QBT_TR(The Web UI username must be at least 3 characters long.)QBT_TR");
     return;
   }
-  var web_ui_password = $('webui_password_text').getProperty('value');
-  if(web_ui_password.length < 6) {
-    alert("QBT_TR(The Web UI password must be at least 6 characters long.)QBT_TR");
+  if(web_ui_password.length < 3) {
+    alert("QBT_TR(The Web UI password must be at least 3 characters long.)QBT_TR");
     return;
   }
   settings.set('web_ui_username', web_ui_username);

@@ -289,6 +289,7 @@ public:
     void setFilter(const QString &path);
     QStringList bannedIPs() const;
     void banIP(const QString &ip);
+    void unbanIP();
 
     // Search
     bool isSearchEnabled() const;
@@ -398,6 +399,8 @@ public:
     void enableSuperSeeding(bool enabled);
     bool announceToAllTrackers() const;
     void setAnnounceToAllTrackers(bool enabled);
+    bool AutoBan() const;
+    void setAutoBan(bool enabled);
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))
     bool useSystemIconTheme() const;
     void useSystemIconTheme(bool enabled);

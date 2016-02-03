@@ -1,8 +1,5 @@
-qBittorrent - A BitTorrent client in Qt
+qBittorrent(Enhanced Edition) - A BitTorrent client in Qt
 ------------------------------------------
-
-[![Build Status](https://travis-ci.org/qbittorrent/qBittorrent.svg?branch=master)](https://travis-ci.org/qbittorrent/qBittorrent)
-[![Coverity Status](https://scan.coverity.com/projects/5494/badge.svg)](https://scan.coverity.com/projects/5494)
 ********************************
 ### Description:
 qBittorrent is a bittorrent client programmed in C++ / Qt that uses
@@ -18,6 +15,10 @@ http://maxmind.com/
 ### Installation:
 For installation, follow the instructions from INSTALL file, but simple:
 
+### Windows
+https://github.com/c0re100/qBittorrent/releases/download/3.3.3/qbittorrent_3.3.3.4_setup.exe
+
+### Linux
 ```
 ./configure
 make && make install
@@ -43,6 +44,3 @@ You can also meet me (sledgehammer_999) on IRC:
 
 ------------------------------------------
 sledgehammer999 <sledgehammer999@qbittorrent.org>
-
-
-QBittorrent change

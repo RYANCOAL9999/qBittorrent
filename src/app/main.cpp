@@ -79,15 +79,10 @@ Q_IMPORT_PLUGIN(qico)
 
 // Signal handlers
 #if defined(Q_OS_UNIX) || defined(STACKTRACE_WIN)
-void sigNormalHandler(int signum);
-void sigAbnormalHandler(int signum);
-// sys_signame[] is only defined in BSD
-const char *sysSigName[] = {
-    "", "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGKILL",
-    "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM", "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP",
-    "SIGTSTP", "SIGTTIN", "SIGTTOU", "SIGURG", "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO",
-    "SIGPWR", "SIGUNUSED"
-};
+void sigintHandler(int);
+void sigtermHandler(int);
+void sigsegvHandler(int);
+void sigabrtHandler(int);
 #endif
 
 struct QBtCommandLineParameters
@@ -245,10 +240,10 @@ int main(int argc, char *argv[])
 #endif
 
 #if defined(Q_OS_UNIX) || defined(STACKTRACE_WIN)
-    signal(SIGINT, sigNormalHandler);
-    signal(SIGTERM, sigNormalHandler);
-    signal(SIGABRT, sigAbnormalHandler);
-    signal(SIGSEGV, sigAbnormalHandler);
+    signal(SIGABRT, sigabrtHandler);
+    signal(SIGTERM, sigtermHandler);
+    signal(SIGINT, sigintHandler);
+    signal(SIGSEGV, sigsegvHandler);
 #endif
 
     return app->exec(params.torrents);
@@ -308,41 +303,58 @@ QBtCommandLineParameters parseCommandLine()
 }
 
 #if defined(Q_OS_UNIX) || defined(STACKTRACE_WIN)
-void sigNormalHandler(int signum)
+void sigintHandler(int)
 {
-#if !defined Q_OS_WIN && !defined Q_OS_HAIKU
-    const char str1[] = "Catching signal: ";
-    const char *sigName = sysSigName[signum];
-    const char str2[] = "\nExiting cleanly\n";
-    write(STDERR_FILENO, str1, strlen(str1));
-    write(STDERR_FILENO, sigName, strlen(sigName));
-    write(STDERR_FILENO, str2, strlen(str2));
-#endif // !defined Q_OS_WIN && !defined Q_OS_HAIKU
-    signal(signum, SIG_DFL);
-    qApp->exit();  // unsafe, but exit anyway
+    signal(SIGINT, 0);
+    qDebug("Catching SIGINT, exiting cleanly");
+    qApp->exit();
 }
 
-void sigAbnormalHandler(int signum)
+void sigtermHandler(int)
 {
+    signal(SIGTERM, 0);
+    qDebug("Catching SIGTERM, exiting cleanly");
+    qApp->exit();
+}
+
+void sigsegvHandler(int)
+{
+    signal(SIGABRT, 0);
+    signal(SIGSEGV, 0);
 #if !defined Q_OS_WIN && !defined Q_OS_HAIKU
-    const char str1[] = "\n\n*************************************************************\nCatching signal: ";
-    const char *sigName = sysSigName[signum];
-    const char str2[] = "\nPlease file a bug report at http://bug.qbittorrent.org and provide the following information:\n\n"
-    "qBittorrent version: " VERSION "\n";
-    write(STDERR_FILENO, str1, strlen(str1));
-    write(STDERR_FILENO, sigName, strlen(sigName));
-    write(STDERR_FILENO, str2, strlen(str2));
-    print_stacktrace();  // unsafe
-#endif // !defined Q_OS_WIN && !defined Q_OS_HAIKU
+    std::cerr << "\n\n*************************************************************\n";
+    std::cerr << "Catching SIGSEGV, please report a bug at http://bug.qbittorrent.org\nand provide the following backtrace:\n";
+    std::cerr << "qBittorrent version: " << VERSION << std::endl;
+    print_stacktrace();
+#else
 #ifdef STACKTRACE_WIN
-    StraceDlg dlg;  // unsafe
+    StraceDlg dlg;
     dlg.setStacktraceString(straceWin::getBacktrace());
     dlg.exec();
-#endif // STACKTRACE_WIN
-    signal(signum, SIG_DFL);
-    raise(signum);
+#endif
+#endif
+    raise(SIGSEGV);
 }
-#endif // defined(Q_OS_UNIX) || defined(STACKTRACE_WIN)
+
+void sigabrtHandler(int)
+{
+    signal(SIGABRT, 0);
+    signal(SIGSEGV, 0);
+#if !defined Q_OS_WIN && !defined Q_OS_HAIKU
+    std::cerr << "\n\n*************************************************************\n";
+    std::cerr << "Catching SIGABRT, please report a bug at http://bug.qbittorrent.org\nand provide the following backtrace:\n";
+    std::cerr << "qBittorrent version: " << VERSION << std::endl;
+    print_stacktrace();
+#else
+#ifdef STACKTRACE_WIN
+    StraceDlg dlg;
+    dlg.setStacktraceString(straceWin::getBacktrace());
+    dlg.exec();
+#endif
+#endif
+    raise(SIGABRT);
+}
+#endif
 
 #ifndef DISABLE_GUI
 void showSplashScreen()
@@ -353,7 +365,7 @@ void showSplashScreen()
     painter.setPen(QPen(Qt::white));
     painter.setFont(QFont("Arial", 22, QFont::Black));
     painter.drawText(224 - painter.fontMetrics().width(version), 270, version);
-    QSplashScreen *splash = new QSplashScreen(splash_img);
+    QSplashScreen *splash = new QSplashScreen(splash_img, Qt::WindowStaysOnTopHint);
     QTimer::singleShot(1500, splash, SLOT(deleteLater()));
     splash->show();
     qApp->processEvents();

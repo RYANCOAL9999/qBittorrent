@@ -29,8 +29,8 @@
 #ifndef BITTORRENT_CACHESTATUS_H
 #define BITTORRENT_CACHESTATUS_H
 
-#include <QtGlobal>
 #include <libtorrent/disk_io_thread.hpp>
+#include <QtGlobal>
 
 namespace BitTorrent
 {

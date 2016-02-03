@@ -47,8 +47,6 @@ using namespace BitTorrent;
 #include <queue>
 #include <vector>
 
-#include <boost/bind.hpp>
-
 #include <libtorrent/session.hpp>
 #include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/bencode.hpp>
@@ -360,19 +358,16 @@ void Session::setSessionSettings()
     sessionSettings.active_lsd_limit = -1;
 
     // Outgoing ports
-#if LIBTORRENT_VERSION_NUM < 10100
     sessionSettings.outgoing_ports = std::make_pair(pref->outgoingPortsMin(), pref->outgoingPortsMax());
-#else
-    sessionSettings.outgoing_port = pref->outgoingPortsMin();
-    sessionSettings.num_outgoing_ports = pref->outgoingPortsMax() - pref->outgoingPortsMin();
-#endif
     // Ignore limits on LAN
     qDebug() << "Ignore limits on LAN" << pref->getIgnoreLimitsOnLAN();
     sessionSettings.ignore_limits_on_local_network = pref->getIgnoreLimitsOnLAN();
     // Include overhead in transfer limits
     sessionSettings.rate_limit_ip_overhead = pref->includeOverheadInLimits();
     // IP address to announce to trackers
-    sessionSettings.announce_ip = Utils::String::toStdString(pref->getNetworkAddress());
+    QString announce_ip = pref->getNetworkAddress();
+    if (!announce_ip.isEmpty())
+        sessionSettings.announce_ip = Utils::String::toStdString(announce_ip);
     // Super seeding
     sessionSettings.strict_super_seeding = pref->isSuperSeedingEnabled();
     // * Max Half-open connections
@@ -958,8 +953,10 @@ bool Session::addTorrent(QString source, const AddTorrentParams &params)
         adjustLimits();
 
         // use common 2nd step of torrent addition
+        libt::add_torrent_alert *alert = new libt::add_torrent_alert(handle, libt::add_torrent_params(), libt::error_code());
         m_addingTorrents.insert(hash, addDataFromParams(params));
-        createTorrentHandle(handle);
+        handleAddTorrentAlert(alert);
+        delete alert;
         return true;
     }
 
@@ -2065,18 +2062,26 @@ void Session::dispatchTorrentAlert(libt::alert *a)
         torrent->handleAlert(a);
 }
 
-void Session::createTorrentHandle(const libt::torrent_handle &nativeHandle)
+void Session::handleAddTorrentAlert(libtorrent::add_torrent_alert *p)
 {
+    Logger *const logger = Logger::instance();
+    if (p->error) {
+        qDebug("/!\\ Error: Failed to add torrent!");
+        QString msg = Utils::String::fromStdString(p->message());
+        logger->addMessage(tr("Couldn't add torrent. Reason: %1").arg(msg), Log::WARNING);
+        emit addTorrentFailed(msg);
+        return;
+    }
+
     // Magnet added for preload its metadata
-    if (!m_addingTorrents.contains(nativeHandle.info_hash())) return;
+    if (!m_addingTorrents.contains(p->handle.info_hash())) return;
 
-    AddTorrentData data = m_addingTorrents.take(nativeHandle.info_hash());
+    AddTorrentData data = m_addingTorrents.take(p->handle.info_hash());
 
-    TorrentHandle *const torrent = new TorrentHandle(this, nativeHandle, data);
+    TorrentHandle *const torrent = new TorrentHandle(this, p->handle, data);
     m_torrents.insert(torrent->hash(), torrent);
 
     Preferences *const pref = Preferences::instance();
-    Logger *const logger = Logger::instance();
 
     bool fromMagnetUri = !torrent->hasMetadata();
 
@@ -2130,20 +2135,7 @@ void Session::createTorrentHandle(const libt::torrent_handle &nativeHandle)
     emit torrentAdded(torrent);
 }
 
-void Session::handleAddTorrentAlert(libt::add_torrent_alert *p)
-{
-    if (p->error) {
-        qDebug("/!\\ Error: Failed to add torrent!");
-        QString msg = Utils::String::fromStdString(p->message());
-        Logger::instance()->addMessage(tr("Couldn't add torrent. Reason: %1").arg(msg), Log::WARNING);
-        emit addTorrentFailed(msg);
-    }
-    else {
-        createTorrentHandle(p->handle);
-    }
-}
-
-void Session::handleTorrentRemovedAlert(libt::torrent_removed_alert *p)
+void Session::handleTorrentRemovedAlert(libtorrent::torrent_removed_alert *p)
 {
     if (m_loadedMetadata.contains(p->info_hash))
         emit metadataLoaded(m_loadedMetadata.take(p->info_hash));
@@ -2266,6 +2258,7 @@ void Session::handleListenSucceededAlert(libt::listen_succeeded_alert *p)
 
 void Session::handleListenFailedAlert(libt::listen_failed_alert *p)
 {
+    boost::system::error_code ec;
     QString proto = "TCP";
     if (p->sock_type == libt::listen_failed_alert::udp)
         proto = "UDP";
@@ -2277,24 +2270,12 @@ void Session::handleListenFailedAlert(libt::listen_failed_alert *p)
         proto = "I2P";
     else if (p->sock_type == libt::listen_failed_alert::socks5)
         proto = "SOCKS5";
-
-#if LIBTORRENT_VERSION_NUM < 10100
-    boost::system::error_code ec;
     qDebug() << "Failed listening on " << proto << p->endpoint.address().to_string(ec).c_str() << "/" << p->endpoint.port();
     Logger::instance()->addMessage(
                 tr("qBittorrent failed listening on interface %1 port: %2/%3. Reason: %4.",
-                   "e.g: qBittorrent failed listening on interface 192.168.0.1 port: TCP/6881. Reason: already in use.")
+                   "e.g: qBittorrent failed listening on interface 192.168.0.1 port: TCP/6881. Reason: already in use")
                 .arg(p->endpoint.address().to_string(ec).c_str()).arg(proto).arg(QString::number(p->endpoint.port()))
                 .arg(QString::fromLocal8Bit(p->error.message().c_str())), Log::CRITICAL);
-#else
-    qDebug() << "Failed listening on " << proto << p->listen_interface();
-    Logger::instance()->addMessage(
-                tr("qBittorrent failed listening on interface %1 [%2]. Reason: %3.",
-                   "e.g: qBittorrent failed listening on interface 192.168.0.1 [TCP]. Reason: already in use.")
-                .arg(QString::fromUtf8(p->listen_interface()))
-                .arg(proto)
-                .arg(Utils::String::fromStdString(p->error.message())), Log::CRITICAL);
-#endif
 }
 
 void Session::handleExternalIPAlert(libt::external_ip_alert *p)
